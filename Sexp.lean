@@ -21,12 +21,19 @@ def Sexp.constr (head : String) (lst : List Sexp) : Sexp :=
 class Sexpable (α : Type) : Type where
   toSexp : α → Sexp
 
+def toSexp {α : Type} [s : Sexpable α] (x : α): Sexp := s.toSexp x
+
 instance: Sexpable String where
   toSexp := .string
 
 instance: Sexpable Int where
   toSexp := .integer
 
+instance: Sexpable Nat where
+  toSexp := fun n => .integer ↑n
+
+instance: Sexpable UInt64 where
+  toSexp := fun k => .integer ↑k.val
+
 instance: Sexpable Float where
   toSexp := .double
-

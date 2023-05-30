@@ -81,27 +81,85 @@ partial def dumpExpr (e : Expr) : M Nat := do
 
 
 def Sexp.fromName (n : Name) : Sexp :=
-  sorry
+  match n with
+  | .anonymous => .constr "anonymous" []
+  | .str mdl nm =>
+    .constr "name" $ (.integer mdl.hash) :: (.integer nm.hash) :: (toAtoms n).reverse
+  | .num mdl k =>
+    .constr "name" $ (.integer mdl.hash) :: (.integer (hash k)) :: (toAtoms n).reverse
+  where
+    toAtoms (n : Name) : List Sexp :=
+      match n with
+      | .anonymous => [.atom "_"]
+      | .str mdl s => .atom s :: toAtoms mdl
+      | .num mdl k => .atom s!"num{k}" :: toAtoms mdl
 
-def Sexp.fromConstantVal (val : ConstantVal) : Sexp :=
-  sorry
+instance: Sexpable Name where
+  toSexp := Sexp.fromName
+
+def Sexp.fromLevel : Level → Sexp
+  | .zero => .constr "lzero" []
+  | .succ lvl =>  .constr "lsucc" [fromLevel lvl]
+  | .max lvl1 lvl2 => .constr "max" [fromLevel lvl1, fromLevel lvl2]
+  | .imax lvl1 lvl2 => .constr "imax" [fromLevel lvl1, fromLevel lvl2]
+  | .param nm => toSexp nm
+  | .mvar mv => toSexp mv.name
+
+
+instance: Sexpable Level where
+  toSexp := Sexp.fromLevel
+
+def Sexp.fromExpr : Expr → Sexp
+  | .bvar k => constr "var" [toSexp k]
+  | .fvar fv => toSexp fv.name
+  | .mvar mvarId => constr "meta" [toSexp mvarId.hash]
+  | .sort (u : Level) => constr "level" [toSexp u]
+  | .const (declName : Name) (us : List Level) =>
+    sorry
+  | .app (fn : Expr) (arg : Expr) =>
+    sorry
+  | .lam (binderName : Name) (binderType : Expr) (body : Expr) (binderInfo : BinderInfo) =>
+    sorry
+  | .forallE (binderName : Name) (binderType : Expr) (body : Expr) (binderInfo : BinderInfo) =>
+    sorry
+  | .letE (declName : Name) (type : Expr) (value : Expr) (body : Expr) (nonDep : Bool) =>
+    sorry
+  | .lit : Literal → Expr =>
+    sorry
+  | .mdata (data : MData) (expr : Expr) =>
+    sorry
+  | .proj (typeName : Name) (idx : Nat) (struct : Expr) =>
+    sorry
+
+instance: Sexpable Expr where
+  toSexp := Sexp.fromExpr
 
 instance: Sexpable ConstantVal where
   toSexp := Sexp.fromConstantVal
 
+instance: Sexpable QuotKind where
+  toSexp := fun k =>
+    match k with
+  | .type => Sexp.constr "type" []
+  | .ctor => Sexp.constr "ctor" []
+  | .lift => Sexp.constr "lift" []
+  | .ind  => Sexp.constr "ind" []
+
 def Sexp.fromConstantInfo : ConstantInfo → Sexp
-  | .axiomInfo val => sorry
-  | .defnInfo val => sorry   
-  | .thmInfo val => sorry    
-  | .opaqueInfo val => sorry 
-  | .quotInfo val => sorry   
-  | .inductInfo val => sorry 
-  | .ctorInfo val => sorry   
-  | .recInfo val => sorry    
+  | .axiomInfo _ => constr "axiom" []
+  | .defnInfo val => toSexp val.value
+  | .thmInfo val => toSexp val.value
+  | .opaqueInfo val => toSexp val.value
+  | .quotInfo val => constr "quot-info" [toSexp val.kind, toSexp val.toConstantVal.name]
+  | .inductInfo _ => constr "data-or-record" []
+  | .ctorInfo val => constr "constructor" [toSexp val.induct]
+  | .recInfo _ => constr "recursor" []
 
 instance: Sexpable ConstantInfo where
   toSexp := Sexp.fromConstantInfo
 
+def Sexp.fromConstant (nm : Name) (c : ConstantInfo) : Sexp :=
+  .constr "definition" [toSexp nm, toSexp c.type, Sexp.fromConstantInfo c]
 
 partial def dumpConstant (c : Name) : M Unit := do
   if (← get).visitedConstants.contains c then
