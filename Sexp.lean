@@ -7,7 +7,7 @@ inductive Sexp : Type
 
 partial def Sexp.toString : Sexp → String
   | .atom s => s
-  | .string s => ToString.toString s
+  | .string s => s.quote
   | .integer k => ToString.toString k
   | .double x => ToString.toString x
   | .cons lst => "(" ++ (" ".intercalate $ lst.map toString) ++ ")"

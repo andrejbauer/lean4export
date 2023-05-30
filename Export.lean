@@ -84,9 +84,9 @@ def Sexp.fromName (n : Name) : Sexp :=
   match n with
   | .anonymous => .constr "anonymous" []
   | .str mdl nm =>
-    .constr "name" $ (.integer mdl.hash) :: (.integer nm.hash) :: (toAtoms n).reverse
+    .constr "name" $ (toSexp mdl.hash) :: (toSexp nm.hash) :: (toAtoms n).reverse
   | .num mdl k =>
-    .constr "name" $ (.integer mdl.hash) :: (.integer (hash k)) :: (toAtoms n).reverse
+    .constr "name" $ (toSexp mdl.hash) :: (toSexp k) :: (toAtoms n).reverse
   where
     toAtoms (n : Name) : List Sexp :=
       match n with
@@ -97,45 +97,52 @@ def Sexp.fromName (n : Name) : Sexp :=
 instance: Sexpable Name where
   toSexp := Sexp.fromName
 
-def Sexp.fromLevel : Level → Sexp
-  | .zero => .constr "lzero" []
-  | .succ lvl =>  .constr "lsucc" [fromLevel lvl]
-  | .max lvl1 lvl2 => .constr "max" [fromLevel lvl1, fromLevel lvl2]
-  | .imax lvl1 lvl2 => .constr "imax" [fromLevel lvl1, fromLevel lvl2]
-  | .param nm => toSexp nm
-  | .mvar mv => toSexp mv.name
-
+def Sexp.fromLevel (lvl : Level) : Sexp := constr "level" [fromLvl lvl]
+  where
+    fromLvl : Level → Sexp
+    | .zero => constr "lzero" []
+    | .succ lvl =>  constr "lsucc" [fromLevel lvl]
+    | .max lvl1 lvl2 => constr "max" [fromLevel lvl1, fromLevel lvl2]
+    | .imax lvl1 lvl2 => constr "imax" [fromLevel lvl1, fromLevel lvl2]
+    | .param nm => toSexp nm
+    | .mvar mv => toSexp mv.name
 
 instance: Sexpable Level where
   toSexp := Sexp.fromLevel
 
+instance: Sexpable BinderInfo where
+  toSexp := fun info =>
+    match info with
+    | .default => Sexp.constr "default" []
+    | .implicit => Sexp.constr "implicit" []
+    | .strictImplicit => Sexp.constr "strict-implicit" []
+    | .instImplicit => Sexp.constr "inst-implicit" []
+
+instance: Sexpable Literal where
+  toSexp := fun lit =>
+    match lit with
+    | .natVal val => Sexp.constr "literal" [toSexp val]
+    | .strVal val => Sexp.constr "literal" [toSexp val]
+
 def Sexp.fromExpr : Expr → Sexp
   | .bvar k => constr "var" [toSexp k]
   | .fvar fv => toSexp fv.name
-  | .mvar mvarId => constr "meta" [toSexp mvarId.hash]
-  | .sort (u : Level) => constr "level" [toSexp u]
-  | .const (declName : Name) (us : List Level) =>
-    sorry
-  | .app (fn : Expr) (arg : Expr) =>
-    sorry
-  | .lam (binderName : Name) (binderType : Expr) (body : Expr) (binderInfo : BinderInfo) =>
-    sorry
-  | .forallE (binderName : Name) (binderType : Expr) (body : Expr) (binderInfo : BinderInfo) =>
-    sorry
-  | .letE (declName : Name) (type : Expr) (value : Expr) (body : Expr) (nonDep : Bool) =>
-    sorry
-  | .lit : Literal → Expr =>
-    sorry
-  | .mdata (data : MData) (expr : Expr) =>
-    sorry
-  | .proj (typeName : Name) (idx : Nat) (struct : Expr) =>
-    sorry
+  | .mvar mvarId => constr "meta" [toSexp mvarId.name.hash]
+  | .sort (u : Level) => constr "sort" [toSexp u]
+  | .const declName us => constr "const" $ toSexp declName :: us.map toSexp
+  | .app e1 e2 => constr "apply" [fromExpr e1, fromExpr e2]
+  | .lam _ binderType body binderInfo =>
+    constr "lambda" [fromExpr binderType, fromExpr body, toSexp binderInfo]
+  | .forallE _ binderType body binderInfo =>
+    constr "pi" [fromExpr binderType, fromExpr body, toSexp binderInfo]
+  | .letE declName type value body _ =>
+    constr "let" [toSexp declName, fromExpr type, fromExpr value, fromExpr body]
+  | .lit l => toSexp l
+  | .mdata _ expr => fromExpr expr
+  | .proj typeName idx struct => constr "proj" [toSexp typeName, toSexp idx, fromExpr struct]
 
 instance: Sexpable Expr where
   toSexp := Sexp.fromExpr
-
-instance: Sexpable ConstantVal where
-  toSexp := Sexp.fromConstantVal
 
 instance: Sexpable QuotKind where
   toSexp := fun k =>
