@@ -1,4 +1,5 @@
 import Lean
+import Sexp
 
 open Lean
 
@@ -14,13 +15,13 @@ structure State where
 
 abbrev M := ReaderT Context <| StateT State IO
 
-def M.run (env : Environment) (act : M α) : IO α :=
+def M.run {α : Type} (env : Environment) (act : M α) : IO α :=
   StateT.run' (s := {}) do
     ReaderT.run (r := { env }) do
       act
 
 @[inline]
-def getIdx [Hashable α] [BEq α] (x : α) (getM : State → HashMap α Nat) (setM : State → HashMap α Nat → State) (rec : M String) : M Nat := do
+def getIdx {α : Type} [Hashable α] [BEq α] (x : α) (getM : State → HashMap α Nat) (setM : State → HashMap α Nat → State) (rec : M String) : M Nat := do
   let m ← getM <$> get
   if let some idx := m.find? x then
     return idx
@@ -45,7 +46,7 @@ def dumpLevel (l : Level) : M Nat := getIdx l (·.visitedLevels) ({ · with visi
   | .imax l1 l2 => return s!"#UIM {← dumpLevel l1} {← dumpLevel l2}"
   | .param n => return s!"#UP {← dumpName n}"
 
-def seq [ToString α] (xs : List α) : String :=
+def seq {α : Type} [ToString α] (xs : List α) : String :=
   xs.map toString |> String.intercalate " "
 
 def dumpInfo : BinderInfo → String
@@ -77,6 +78,30 @@ partial def dumpExpr (e : Expr) : M Nat := do
     | .proj s i e => return s!"#EJ {← dumpName s} {i} {← dumpExpr e}"
     | .lit (.natVal i) => return s!"#ELN {i}"
     | .lit (.strVal s) => return s!"#ELS {s.toUTF8.toList.map uint8ToHex |> seq}"
+
+
+def Sexp.fromName (n : Name) : Sexp :=
+  sorry
+
+def Sexp.fromConstantVal (val : ConstantVal) : Sexp :=
+  sorry
+
+instance: Sexpable ConstantVal where
+  toSexp := Sexp.fromConstantVal
+
+def Sexp.fromConstantInfo : ConstantInfo → Sexp
+  | .axiomInfo val => sorry
+  | .defnInfo val => sorry   
+  | .thmInfo val => sorry    
+  | .opaqueInfo val => sorry 
+  | .quotInfo val => sorry   
+  | .inductInfo val => sorry 
+  | .ctorInfo val => sorry   
+  | .recInfo val => sorry    
+
+instance: Sexpable ConstantInfo where
+  toSexp := Sexp.fromConstantInfo
+
 
 partial def dumpConstant (c : Name) : M Unit := do
   if (← get).visitedConstants.contains c then
