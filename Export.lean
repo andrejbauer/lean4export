@@ -168,6 +168,10 @@ instance: Sexpable ConstantInfo where
 def Sexp.fromConstant (nm : Name) (c : ConstantInfo) : Sexp :=
   .constr "definition" [toSexp nm, toSexp c.type, Sexp.fromConstantInfo c]
 
+def sexpConstant (c : Name) : M Sexp := do
+  let info := (← read).env.find? c |>.get!
+  return Sexp.fromConstant c info
+
 partial def dumpConstant (c : Name) : M Unit := do
   if (← get).visitedConstants.contains c then
     return

@@ -11,4 +11,5 @@ def main (args : List String) : IO Unit := do
     | none    => env.constants.toList.map Prod.fst |>.filter (!·.isInternal)
   M.run env do
     for c in constants do
-      let _ ← dumpConstant c
+      let s ← sexpConstant c
+      IO.println s
