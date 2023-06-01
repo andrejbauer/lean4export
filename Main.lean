@@ -1,15 +1,11 @@
-import Export
-open Lean
+import Sexp
 
 def main (args : List String) : IO Unit := do
-  initSearchPath (← findSysroot)
-  let (imports, constants) := args.span (· != "--")
-  let imports := imports.map fun mod => { module := Syntax.decodeNameLit ("`" ++ mod) |>.get! }
-  let env ← importModules imports {}
-  let constants := match constants.tail? with
-    | some cs => cs.map fun c => Syntax.decodeNameLit ("`" ++ c) |>.get!
-    | none    => env.constants.toList.map Prod.fst |>.filter (!·.isInternal)
-  M.run env do
-    for c in constants do
-      let s ← sexpConstant c
-      IO.println s
+  let srcDir := args.get! 0
+  let outDir := args.get! 1
+  IO.println s!"Extracting s-expressions from {srcDir} to {outDir}"
+
+-- def main (args : List String) : IO Unit := do
+--   for fileName in args do
+--     let (data, _) ← Lean.readModuleData fileName
+--     IO.println $ Sexp.fromModuleData (.mkStr3 "fake" "module" "name") data
